@@ -183,6 +183,29 @@ class SimplefinItem::ImporterTest < ActiveSupport::TestCase
     end
   end
 
+  test "protocol v2 Fidelity fund corrections retain dividend direction on resync" do
+    account = accounts(:depository)
+    sfa = create_simplefin_account("synthetic_real_return", "Brokerage", "investment", 100)
+    account.update!(simplefin_account_id: sfa.id)
+    @importer.stubs(:reconcile_and_track_pending_duplicates)
+    @importer.stubs(:review_and_exclude_stale_pending)
+    tx = { id: "synthetic_real_return_dividend", amount: "-10", currency: "USD",
+           posted: Time.utc(2026, 1, 2).to_i, pending: false, description: "DIVIDEND RECEIVED SECURITY" }
+    # Contributor-reported v2 organization shape; amounts and rows are synthetic.
+    payload = { id: sfa.account_id, name: sfa.name, type: "investment", balance: 100, currency: "USD",
+                org: { name: "Fidelity Investments", url: "https://www.fidelity.com" }, transactions: [ tx ] }
+    @importer.send(:import_account, payload)
+    corrected = tx.merge(description: "DIVIDEND RECEIVED FIDELITY STRATEGIC REAL RETURN FUND")
+    2.times do
+      @importer.send(:import_account, payload.merge(transactions: [ corrected ]))
+      SimplefinAccount::Transactions::Processor.new(sfa.reload).process
+      entry = account.entries.find_by!(source: "simplefin", external_id: "simplefin_#{tx[:id]}")
+      assert_equal BigDecimal("-10"), entry.amount
+      assert_equal "dividend", entry.transaction.extra.dig("simplefin", "amount_normalization")
+      assert_equal [ corrected.deep_stringify_keys ], sfa.reload.raw_transactions_payload
+    end
+  end
+
   test "equal rank non Fidelity rows take the current complete provider snapshot" do
     sfa = create_simplefin_account("synthetic_other_bank", "Checking", "checking", 100)
     tx = { id: "synthetic_other_transaction", amount: "-1.00", posted: 1_700_000_000,

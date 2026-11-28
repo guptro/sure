@@ -25,6 +25,7 @@ class SimplefinEntry::ProcessorTest < ActiveSupport::TestCase
   test "dividend security names do not act as tax or return qualifiers" do
     [ "DIVIDEND RECEIVED FIDELITY TAX-FREE BOND FUND",
       "DIVIDEND RECEIVED FIDELITY TAX-EXEMPT MONEY MARKET",
+      "DIVIDEND RECEIVED FIDELITY STRATEGIC REAL RETURN FUND",
       "DIVIDEND RECEIVED FIDELITY TOTAL-RETURN FUND",
       "DIVIDEND RECEIVED FIDELITY TOTAL RETURN BOND FUND" ].each_with_index do |description, index|
       [ "1.00", "-1.00" ].each_with_index do |raw_amount, sign|
@@ -44,7 +45,9 @@ class SimplefinEntry::ProcessorTest < ActiveSupport::TestCase
       "DIVIDEND RECEIVED EXAMPLE FUND REVERSAL", "DIVIDEND RECEIVED RETURN OF CAPITAL",
       "DIVIDEND RECEIVED TAXES", "DIVIDEND RECEIVED FIDELITY TAX-EXEMPT MONEY MARKET WITHHELD",
       "DIVIDEND RECEIVED EXAMPLE FUND RETURN (CASH)",
-      "DIVIDEND RECEIVED TOTAL RETURN OF CAPITAL" ].each_with_index do |description, index|
+      "DIVIDEND RECEIVED TOTAL RETURN OF CAPITAL", "DIVIDEND RECEIVED SECURITY RETURNED (CASH)",
+      "DIVIDEND RECEIVED STRATEGIC REAL RETURN FUND REVERSAL",
+      "DIVIDEND RECEIVED STRATEGIC REAL RETURN FUND WITHHELD" ].each_with_index do |description, index|
       [ "1.00", "-1.00" ].each_with_index do |raw_amount, sign|
         tx = { id: "synthetic_dividend_qualifier_#{index}_#{sign}", amount: raw_amount,
                description: description, currency: "USD", posted: Date.current.to_s }

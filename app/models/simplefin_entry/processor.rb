@@ -25,9 +25,10 @@ class SimplefinEntry::Processor
     }
   }.freeze
   AMBIGUOUS_AMOUNT_TERMS = /\b(?:REVERS|RETURN|REFUND)/i
-  # TAX-FREE, TAX-EXEMPT and TOTAL RETURN can be security names, not actions.
+  # Tax-exempt and return terminology can belong to the security, not the action.
   # Withheld tax, reversals and returns of capital are not ordinary dividends.
   DIVIDEND_TRANSACTION_QUALIFIERS = /\b(?:TAX(?:ES)?(?![-\s]+(?:FREE|EXEMPT)\b)|WITHHOLDING|WITHHELD)\b|\bRETURN\s+OF\s+CAPITAL\b/i
+  DIVIDEND_AMOUNT_ADJUSTMENTS = /\b(?:REVERS|REFUND)|\bRETURN(?:ED)?(?:\s*\(CASH\))?\s*\z/i
   # simplefin_transaction is the raw hash fetched from SimpleFin API and converted to JSONB
   # @param import_adapter [Account::ProviderImportAdapter, nil] Optional shared adapter for accumulating skipped entries
   def initialize(simplefin_transaction, simplefin_account:, import_adapter: nil)
@@ -211,9 +212,10 @@ class SimplefinEntry::Processor
           next false unless value.match?(rule.fetch(:pattern))
           next false if name == :dividend && value.match?(DIVIDEND_TRANSACTION_QUALIFIERS)
 
-          # Exempt the specific fund-name compound, not arbitrary return language.
-          qualifier_text = name == :dividend ? value.gsub(/\bTOTAL[-\s]+RETURN\b/i, "") : value
-          !qualifier_text.match?(AMBIGUOUS_AMOUNT_TERMS)
+          # A return of capital or returned dividend is an action; RETURN inside
+          # a security name is not. Do not maintain a catalogue of fund names.
+          adjustments = name == :dividend ? DIVIDEND_AMOUNT_ADJUSTMENTS : AMBIGUOUS_AMOUNT_TERMS
+          !value.match?(adjustments)
         end
       end
     end
